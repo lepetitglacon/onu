@@ -17,6 +17,21 @@ const URL = "http://localhost:3333";
 const socket = io(URL);
 console.log('connecting to ' + URL)
 
+const handleCardClick = (e) => {
+  console.log(e)
+  e.player = {
+    id: socket.id
+  }
+  socket.emit("player-turn", e);
+}
+
+const handleStart = () => {
+  console.log('sending admin start')
+  socket.emit("admin-start");
+}
+
+
+
 socket.on("connect", () => {
   state.connected = true;
 });
@@ -27,6 +42,10 @@ socket.on("player-add", (socket) => {
   console.log(socket)
   state.players.push(socket);
 });
+socket.on("players", (players) => {
+  console.log("players", players)
+  state.players = players
+});
 socket.on("player-remove", (socket) => {
   console.log(socket)
   state.players.filter((el) => el !== socket);
@@ -35,20 +54,16 @@ socket.on("starting-cards", (cards) => {
   state.cards = cards;
 });
 
-const handleStart = () => {
-  console.log('sending admin start')
-  socket.emit("admin-start");
-}
 </script>
 
 <template>
     <img :src="bg" id="background-image">
 
-    <div id="main-hand">
+    <div id="hand">
       <h2>Cards</h2>
       <div v-if="state.cards.length > 0" class="hand-container">
         <div v-for="card in state.cards" >
-          <Card :gallery="gallery" :card="card" />
+          <Card @click="handleCardClick" :gallery="gallery" :card="card" />
         </div>
       </div>
     </div>
@@ -65,27 +80,18 @@ const handleStart = () => {
       </div>
     </div>
 
+    <div>
+      <h2>Players</h2>
+      <div v-for="player in state.players" :key="player.id">
+        <pre>{{ player }}</pre>
+
+        <Card v-if="player.id !== socket.id" v-for="i in player.cards" :card="{imageUrl: 'back.png'}" :gallery="gallery" />
+      </div>
+    </div>
+
     <button @click="handleStart">Lancer</button>
 </template>
 
 <style scoped>
 
-
-#main-hand {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  background-color: #0d5e09;
-}
-
-#center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  background-color: #0c139a;
-}
-
-.hand-container {
-  display: flex;
-}
 </style>

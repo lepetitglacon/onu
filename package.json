@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "serve": "nodemon ./server/server.js",
     "build": "vite build",
     "preview": "vite preview"
   },

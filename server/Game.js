@@ -33,9 +33,8 @@ export class Game extends EventEmitter {
         this.bind()
     }
 
-    async playTurn() {
+    async playTurn(e) {
         console.log('tour : ' + this.turns)
-
 
         // premier tour on tire les cartes au hasard
         if (this.turns === 0) {
@@ -44,6 +43,14 @@ export class Game extends EventEmitter {
 
             for (const [id, player] of this.players) {
                 player.socket.emit('starting-cards', player.cards)
+
+                const otherPlayersCardNumber = []
+                for (const [_id, _player] of this.players) {
+                    if (id !== _id) {
+                        otherPlayersCardNumber[_id] = _player.cards.length
+                    }
+                }
+                this.sendPlayerInfo()
             }
 
         } else {
@@ -52,20 +59,15 @@ export class Game extends EventEmitter {
             const player = this.players.get(this.getNextPlayerFollowingOrder())
             // get player action
 
-            player.needToAct = true
-
-
-
-
             // win condition
             if (player.cards.length === 0) {
                 return player
             }
         }
 
-        await Utils.sleep(1000)
+        // await Utils.sleep(1000)
         this.turns++
-        this.playTurn()
+        // this.playTurn()
     }
 
     distributeCards() {
@@ -103,13 +105,25 @@ export class Game extends EventEmitter {
         this.emit('player-add', playerSocket)
     }
 
-    removePlayer(playerSocket) {
+    sendPlayerInfo() {
+        let players = []
+        for (const [id, player] of this.players) {
+            players.push({
+                id: id,
+                name: player.name,
+                cards: player.cards.length
+            })
+        }
+        console.log(players)
+        this.server.to("room1").emit('players', players)
+    }
 
+    removePlayer(playerSocket) {
         if (this.players.has(playerSocket.id)) {
             this.players.delete(playerSocket.id)
         }
 
-        this.emit('player-remove', playerSocket)
+        this.sendPlayerInfo()
     }
 
     getNextPlayerFollowingOrder() {
@@ -154,7 +168,9 @@ export class Game extends EventEmitter {
         // own events
         this.on('player-add', (e) => {
             console.log('Game "player-add" event')
-            this.server.to("room1").emit('player-add', e.id)
+            // this.server.to("room1").emit('player-add', e.id)
+
+            this.sendPlayerInfo()
         })
 
         // socket events
@@ -164,6 +180,15 @@ export class Game extends EventEmitter {
         this.on('admin-start', (e) => {
             console.log('game started')
             this.start()
+        })
+        this.on('player-turn', (e) => {
+            console.log('game player-turn', e)
+
+            if (e.player.id === this.currentPlayerId) {
+                this.playTurn(e)
+            }
+
+
         })
     }
 }
