@@ -10,6 +10,7 @@ import EventEmitter from 'events'
 import {Player} from "./Player.js";
 import {CardFactory} from "./CardFactory.js";
 import {Utils} from "./Utils.js";
+import {ACTIONS} from "./Actions.js";
 
 export class Game extends EventEmitter {
 
@@ -28,6 +29,8 @@ export class Game extends EventEmitter {
         this.turns = 0
 
         this.initialDeck = new Map()
+        this.cards = []
+        this.pile = []
 
         this.init()
         this.bind()
@@ -40,6 +43,10 @@ export class Game extends EventEmitter {
         if (this.turns === 0) {
             this.shuffle(this.initialDeck) // Shuffle le deck
             this.distributeCards() // Donner 7 cartes à chaques joueurs
+
+            this.pile.push(this.draw())
+
+            this.sendGameInfo()
 
             for (const [id, player] of this.players) {
                 player.socket.emit('starting-cards', player.cards)
@@ -55,19 +62,76 @@ export class Game extends EventEmitter {
 
         } else {
 
-            // qui joue
-            const player = this.players.get(this.getNextPlayerFollowingOrder())
-            // get player action
+            const player = this.players.get(e.player.id)
+
+            switch (e.action) {
+                case ACTIONS.PLAY: {
+
+                    let card = player.getCard(e.card.id)
+                    console.log(e.card.id)
+                    console.log(card)
+                    if (card) {
+                        console.log(player.id, 'playing card', card)
+                        let originalCard = this.initialDeck.get(card.id)
+                        if (this.canPlayCardOnCurrentCard(originalCard)) {
+                            console.log('la carte peut etre jouée')
+                            player.removeCard(card.id)
+                            this.pile.push(card)
+                        } else {
+                            console.log('la carte ne peut pas etre jouée')
+                            return
+                        }
+                    }
+                    break;
+                }
+                case ACTIONS.DRAW: {
+                    console.log('joueur', player.id, 'pioche')
+                    player.cards.push(this.draw())
+
+                    break;
+                }
+                case ACTIONS.ONU: {
+                    break;
+                }
+                case ACTIONS.COUNTER_ONU: {
+                    break;
+                }
+                default: {
+                    console.error('action non reconnue')
+                    return
+                }
+            }
 
             // win condition
             if (player.cards.length === 0) {
                 return player
             }
+
+            this.sendGameInfo()
+            this.sendPlayerInfo()
+            player.socket.emit('starting-cards', player.cards)
+
         }
+
+        this.getNextPlayerFollowingOrder()
+        console.log('en attente de move du joueur : ', this.currentPlayerId)
 
         // await Utils.sleep(1000)
         this.turns++
         // this.playTurn()
+    }
+
+    canPlayCardOnCurrentCard(card) {
+        const currentCard = this.getCurrentPileCard()
+
+        return card.title === currentCard.title ||
+            card.color === currentCard.color;
+
+    }
+
+    draw(numberOfCards = 1) {
+        const card = this.cards.pop()
+        return card
     }
 
     distributeCards() {
@@ -76,8 +140,11 @@ export class Game extends EventEmitter {
         for (let i = 1; i < cardsToDistributes + 1; i++) {
             player = this.players.get(this.getNextPlayerFollowingOrder())
             player.cards.push(this.cards[this.cards.length - i])
-            console.log(player.id)
         }
+    }
+
+    getCurrentPileCard() {
+        return this.pile[this.pile.length - 1]
     }
 
     // declare the function
@@ -105,6 +172,13 @@ export class Game extends EventEmitter {
         this.emit('player-add', playerSocket)
     }
 
+    sendGameInfo() {
+        const infos = {}
+        infos.pile = this.pile
+        infos.lastPileCard = this.getCurrentPileCard()
+        this.server.to("room1").emit('game-info', infos)
+    }
+
     sendPlayerInfo() {
         let players = []
         for (const [id, player] of this.players) {
@@ -114,7 +188,6 @@ export class Game extends EventEmitter {
                 cards: player.cards.length
             })
         }
-        console.log(players)
         this.server.to("room1").emit('players', players)
     }
 
@@ -122,7 +195,6 @@ export class Game extends EventEmitter {
         if (this.players.has(playerSocket.id)) {
             this.players.delete(playerSocket.id)
         }
-
         this.sendPlayerInfo()
     }
 
@@ -167,9 +239,6 @@ export class Game extends EventEmitter {
     bind() {
         // own events
         this.on('player-add', (e) => {
-            console.log('Game "player-add" event')
-            // this.server.to("room1").emit('player-add', e.id)
-
             this.sendPlayerInfo()
         })
 
@@ -182,13 +251,9 @@ export class Game extends EventEmitter {
             this.start()
         })
         this.on('player-turn', (e) => {
-            console.log('game player-turn', e)
-
             if (e.player.id === this.currentPlayerId) {
                 this.playTurn(e)
             }
-
-
         })
     }
 }

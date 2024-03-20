@@ -15,13 +15,26 @@ export class Player {
         this.bind()
     }
 
+    hasCard(cardId) {
+        return this.cards.find((card) => card.id == cardId)
+    }
+    getCard(cardId) {
+        let card = this.hasCard(cardId)
+        if (card) {
+            this.cards.filter(cardToFilter => cardToFilter.id != card.id)
+        }
+        return card
+    }
+
+    removeCard(cardId) {
+        this.cards = this.cards.filter(cardToFilter => cardToFilter.id != cardId)
+    }
+
     bind() {
         this.socket.on('admin-start', () => {
             this.game.emit('admin-start')
-            console.log(this.id, 'admin start')
         })
         this.socket.on('player-turn', (e) => {
-            console.log('player-turn', e)
             this.game.emit('player-turn', e)
         })
     }

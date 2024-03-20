@@ -9,7 +9,8 @@ const gallery = Object.values(import.meta.glob('@assets/cards/*.{png,jpg,jpeg,PN
 const state = reactive({
   connected: false,
   players: [],
-  cards: []
+  cards: [],
+  pile: []
 });
 
 // "undefined" means the URL will be computed from the `window.location` object
@@ -20,17 +21,25 @@ console.log('connecting to ' + URL)
 const handleCardClick = (e) => {
   console.log(e)
   e.player = {
-    id: socket.id
+    id: socket.id,
   }
+  e.card = {
+    id: e.target.dataset.id
+  }
+  e.action = 'play'
   socket.emit("player-turn", e);
 }
-
+const handlePiocheClick = (e) => {
+  e.player = {
+    id: socket.id,
+  }
+  e.action = 'draw'
+  socket.emit("player-turn", e);
+}
 const handleStart = () => {
   console.log('sending admin start')
   socket.emit("admin-start");
 }
-
-
 
 socket.on("connect", () => {
   state.connected = true;
@@ -38,9 +47,8 @@ socket.on("connect", () => {
 socket.on("disconnect", () => {
   state.connected = false;
 });
-socket.on("player-add", (socket) => {
-  console.log(socket)
-  state.players.push(socket);
+socket.on("starting-cards", (cards) => {
+  state.cards = cards;
 });
 socket.on("players", (players) => {
   console.log("players", players)
@@ -50,8 +58,9 @@ socket.on("player-remove", (socket) => {
   console.log(socket)
   state.players.filter((el) => el !== socket);
 });
-socket.on("starting-cards", (cards) => {
-  state.cards = cards;
+socket.on("game-info", (infos) => {
+  console.log(infos)
+  state.pile = infos.lastPileCard
 });
 
 </script>
@@ -73,10 +82,12 @@ socket.on("starting-cards", (cards) => {
         <p>ONU</p>
       </div>
       <div>
-        <p>Carte en cours</p>
+        <p>Pile</p>
+        <Card v-if="state.pile" :card="state.pile" :gallery="gallery" />
       </div>
       <div>
         <p>Pioche</p>
+        <Card @click="handlePiocheClick" :card="{imageUrl: 'back.png'}" :gallery="gallery" />
       </div>
     </div>
 

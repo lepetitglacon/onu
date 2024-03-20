@@ -10,7 +10,7 @@ const clicked = ref(false)
 </script>
 
 <template>
-  <img :src="gallery[gallery.indexOf('/src/assets/cards/' + card.imageUrl)]" class="card">
+  <img :src="gallery[gallery.indexOf('/src/assets/cards/' + card.imageUrl)]" class="card" :data-id="card.id">
 </template>
 
 <style scoped>
