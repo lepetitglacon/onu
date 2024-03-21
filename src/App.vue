@@ -10,7 +10,8 @@ const state = reactive({
   connected: false,
   players: [],
   cards: [],
-  pile: []
+  pile: [],
+	currentPLayer: ''
 });
 
 // "undefined" means the URL will be computed from the `window.location` object
@@ -61,6 +62,7 @@ socket.on("player-remove", (socket) => {
 socket.on("game-info", (infos) => {
   console.log(infos)
   state.pile = infos.lastPileCard
+  state.currentPLayer = infos.currentPlayer
 });
 
 </script>
@@ -70,24 +72,37 @@ socket.on("game-info", (infos) => {
 
     <div id="hand">
       <h2>Cards</h2>
+	    <div><p v-if="state.currentPLayer === socket.id">À vous de jouer</p></div>
       <div v-if="state.cards.length > 0" class="hand-container">
         <div v-for="card in state.cards" >
-          <Card @click="handleCardClick" :gallery="gallery" :card="card" />
+          <Card
+	          @click="handleCardClick"
+	          :gallery="gallery"
+	          :card="card"
+          />
         </div>
       </div>
     </div>
 
     <div id="center">
+	    <div><p>{{socket.id}}</p></div>
       <div>
         <p>ONU</p>
       </div>
       <div>
         <p>Pile</p>
-        <Card v-if="state.pile" :card="state.pile" :gallery="gallery" />
+        <Card v-if="state.pile"
+              :card="state.pile"
+              :gallery="gallery"
+        />
       </div>
       <div>
         <p>Pioche</p>
-        <Card @click="handlePiocheClick" :card="{imageUrl: 'back.png'}" :gallery="gallery" />
+        <Card
+	        @click="handlePiocheClick"
+	        :card="{imageUrl: 'back.png'}"
+	        :gallery="gallery"
+        />
       </div>
     </div>
 
@@ -96,7 +111,12 @@ socket.on("game-info", (infos) => {
       <div v-for="player in state.players" :key="player.id">
         <pre>{{ player }}</pre>
 
-        <Card v-if="player.id !== socket.id" v-for="i in player.cards" :card="{imageUrl: 'back.png'}" :gallery="gallery" />
+        <Card
+	        v-if="player.id !== socket.id"
+	        v-for="i in player.cards"
+	        :card="{imageUrl: 'back.png'}"
+	        :gallery="gallery"
+        />
       </div>
     </div>
 
@@ -104,5 +124,8 @@ socket.on("game-info", (infos) => {
 </template>
 
 <style scoped>
-
+#center {
+	display: flex;
+	flex-direction: column;
+}
 </style>

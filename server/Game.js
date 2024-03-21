@@ -46,23 +46,20 @@ export class Game extends EventEmitter {
 
             this.pile.push(this.draw())
 
-            this.sendGameInfo()
 
             for (const [id, player] of this.players) {
                 player.socket.emit('starting-cards', player.cards)
-
-                const otherPlayersCardNumber = []
-                for (const [_id, _player] of this.players) {
-                    if (id !== _id) {
-                        otherPlayersCardNumber[_id] = _player.cards.length
-                    }
-                }
                 this.sendPlayerInfo()
             }
 
-        } else {
+            this.sendGameInfo()
 
-            const player = this.players.get(e.player.id)
+        } else {
+            if (e.player.id === this.currentPlayerId) {
+                return
+            }
+
+            const player = this.players.get(this.currentPlayerId)
 
             switch (e.action) {
                 case ACTIONS.PLAY: {
@@ -107,6 +104,7 @@ export class Game extends EventEmitter {
                 return player
             }
 
+            this.getNextPlayerFollowingOrder()
             this.sendGameInfo()
             this.sendPlayerInfo()
             player.socket.emit('starting-cards', player.cards)
@@ -176,6 +174,7 @@ export class Game extends EventEmitter {
         const infos = {}
         infos.pile = this.pile
         infos.lastPileCard = this.getCurrentPileCard()
+        infos.currentPlayer = this.currentPlayerId
         this.server.to("room1").emit('game-info', infos)
     }
 
@@ -251,9 +250,7 @@ export class Game extends EventEmitter {
             this.start()
         })
         this.on('player-turn', (e) => {
-            if (e.player.id === this.currentPlayerId) {
-                this.playTurn(e)
-            }
+            this.playTurn(e)
         })
     }
 }
