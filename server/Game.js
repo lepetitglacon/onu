@@ -26,6 +26,7 @@ export class Game extends EventEmitter {
         this.started = false
         this.clockwise = true
         this.currentPlayerId = null
+        this.currentPlayerIndex = 0
         this.turns = 0
 
         this.initialDeck = new Map()
@@ -48,72 +49,91 @@ export class Game extends EventEmitter {
 
             for (const [id, player] of this.players) {
                 player.socket.emit('starting-cards', player.cards)
-                this.sendPlayerInfo()
             }
 
-            this.sendGameInfo()
+            this.turns++
+            this.getNextPlayerFollowingOrder()
+            console.log('en attente de move du joueur : ', this.currentPlayerId)
 
-        } else {
-            if (e.player.id === this.currentPlayerId) {
+            this.sendPlayerInfo()
+            this.sendGameInfo()
+            return
+        }
+
+        if (e.player.id !== this.currentPlayerId) {
+            console.log("Ce n'est pas à ce joueur de jouer")
+            return
+        }
+
+        const player = this.players.get(this.currentPlayerId)
+        console.log('---- ', player.id, ' played')
+
+        switch (e.action) {
+            case ACTIONS.PLAY: {
+
+                let card = player.getCard(e.card.id)
+
+                if (card) {
+                    console.log(player.id, 'playing card', card)
+                    const originalCard = this.initialDeck.get(card.id)
+                    if (this.canPlayCardOnCurrentCard(originalCard)) {
+                        console.log('la carte peut etre jouée')
+
+                        // logic des cartes
+                        if (card.title === 'stop') {
+                            console.log("Bloqué")
+                            this.getNextPlayerFollowingOrder()
+                        }
+
+                        if (card.title === 'inverse') {
+                            console.log("Changement de sens")
+                            this.clockwise = false
+                        }
+
+
+
+                        player.removeCard(card.id)
+                        this.pile.push(card)
+                    } else {
+                        console.log('la carte ne peut pas etre jouée')
+                        return
+                    }
+                } else {
+                    console.error("La carte n'a pas été trouvé dans les cartes du joueur")
+                    return;
+                }
+
+                break;
+            }
+            case ACTIONS.DRAW: {
+                console.log('joueur', player.id, 'pioche')
+                player.cards.push(this.draw())
+
+                break;
+            }
+            case ACTIONS.ONU: {
+                break;
+            }
+            case ACTIONS.COUNTER_ONU: {
+                break;
+            }
+            default: {
+                console.error('action non reconnue')
                 return
             }
-
-            const player = this.players.get(this.currentPlayerId)
-            console.log('---- ', player.id, ' played')
-
-            switch (e.action) {
-                case ACTIONS.PLAY: {
-
-                    let card = player.getCard(e.card.id)
-                    console.log('card id : ', e.card.id)
-                    console.log(card)
-
-                    if (card) {
-                        console.log(player.id, 'playing card', card)
-                        let originalCard = this.initialDeck.get(card.id)
-                        if (this.canPlayCardOnCurrentCard(originalCard)) {
-                            console.log('la carte peut etre jouée')
-                            player.removeCard(card.id)
-                            this.pile.push(card)
-                        } else {
-                            console.log('la carte ne peut pas etre jouée')
-                            return
-                        }
-                    }
-                    break;
-                }
-                case ACTIONS.DRAW: {
-                    console.log('joueur', player.id, 'pioche')
-                    player.cards.push(this.draw())
-
-                    break;
-                }
-                case ACTIONS.ONU: {
-                    break;
-                }
-                case ACTIONS.COUNTER_ONU: {
-                    break;
-                }
-                default: {
-                    console.error('action non reconnue')
-                    return
-                }
-            }
-
-            // win condition
-            if (player.cards.length === 0) {
-                return player
-            }
-
-            this.getNextPlayerFollowingOrder()
-            this.sendGameInfo()
-            this.sendPlayerInfo()
-            player.socket.emit('starting-cards', player.cards)
-
         }
+
+        // win condition
+        if (player.cards.length === 0) {
+            return player
+        }
+
+        player.socket.emit('starting-cards', player.cards)
 
         this.getNextPlayerFollowingOrder()
         console.log('en attente de move du joueur : ', this.currentPlayerId)
+        this.sendPlayerInfo()
+        this.sendGameInfo()
 
         // await Utils.sleep(1000)
         this.turns++
@@ -202,20 +222,25 @@ export class Game extends EventEmitter {
     getNextPlayerFollowingOrder() {
         const playerIds = Array.from(this.players.keys())
         let nextPlayer = null
-        let currentPlayerIndex = playerIds.indexOf(this.currentPlayerId)
+        let nextIndex = null
         if (this.clockwise) {
-            if (playerIds[currentPlayerIndex + 1]) {
-                nextPlayer = playerIds[currentPlayerIndex + 1]
-            } else {
+            if (this.currentPlayerIndex >= playerIds.length - 1) {
                 nextPlayer = playerIds[0]
+                nextIndex = 0
+            } else {
+                nextPlayer = playerIds[this.currentPlayerIndex + 1]
+                nextIndex = this.currentPlayerIndex + 1
             }
         } else {
-            if (playerIds[currentPlayerIndex - 1]) {
-                nextPlayer = playerIds[currentPlayerIndex - 1]
-            } else {
+            if (this.currentPlayerIndex === 0) {
                 nextPlayer = playerIds[playerIds.length - 1]
+                nextIndex = playerIds.length - 1
+            } else {
+                nextPlayer = playerIds[this.currentPlayerIndex - 1]
+                nextIndex = this.currentPlayerIndex - 1
             }
         }
+        this.currentPlayerIndex = nextIndex
         this.currentPlayerId = nextPlayer
         return nextPlayer
     }

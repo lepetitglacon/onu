@@ -15,11 +15,10 @@ export class Player {
         this.bind()
     }
 
-    hasCard(cardId) {
-        return this.cards.find((card) => card.id == cardId)
-    }
     getCard(cardId) {
-        let card = this.hasCard(cardId)
+        console.log(this.cards.length)
+        let card = this.cards.find(card => card.id == cardId)
+        console.log(this.cards.length)
         if (card) {
             this.cards.filter(cardToFilter => cardToFilter.id != card.id)
         }
