@@ -44,8 +44,7 @@ export class Game extends EventEmitter {
             this.shuffle(this.initialDeck) // Shuffle le deck
             this.distributeCards() // Donner 7 cartes à chaques joueurs
 
-            this.pile.push(this.draw())
-
+            this.pile.push(this.draw()) // met la première carte en jeu
 
             for (const [id, player] of this.players) {
                 player.socket.emit('starting-cards', player.cards)
@@ -60,13 +59,15 @@ export class Game extends EventEmitter {
             }
 
             const player = this.players.get(this.currentPlayerId)
+            console.log('---- ', player.id, ' played')
 
             switch (e.action) {
                 case ACTIONS.PLAY: {
 
                     let card = player.getCard(e.card.id)
-                    console.log(e.card.id)
+                    console.log('card id : ', e.card.id)
                     console.log(card)
+
                     if (card) {
                         console.log(player.id, 'playing card', card)
                         let originalCard = this.initialDeck.get(card.id)
@@ -177,6 +178,7 @@ export class Game extends EventEmitter {
         infos.currentPlayer = this.currentPlayerId
         this.server.to("room1").emit('game-info', infos)
     }
+
 
     sendPlayerInfo() {
         let players = []

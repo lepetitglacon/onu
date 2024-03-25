@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
+import {useGallery} from "../composables/useGallery.js";
+
+const gallery = useGallery()
 
 const props = defineProps({
-  gallery: {},
   card: {},
 })
 
@@ -16,7 +18,6 @@ const clicked = ref(false)
 <style scoped>
 img {
 	position: relative;
-	left: -50px;
-  max-width: 150px;
+    max-width: 150px;
 }
 </style>
