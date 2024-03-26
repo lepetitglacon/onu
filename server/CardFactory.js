@@ -33,20 +33,25 @@ export class CardFactory {
                 }
             }
         } else {
-            const card = new Card()
-            this.fillInfoFromData(card, cardData)
-            cards.push(card)
+            for (const color of Object.values(Card.COLORS)) {
+                if (color === Card.COLORS.BLACK) { continue }
+                const card = new Card()
+                card.color = Card.COLORS.BLACK
+                this.fillInfoFromData(card, cardData)
+                cards.push(card)
+            }
         }
 
         return cards
     }
 
     fillInfoFromData(card, cardData) {
+        console.log(this.idCounter)
         card.id = this.idCounter++
 
         card.title = cardData.title
         card.description = cardData.description
-        card.imageUrl = ""
+        card.imageUrl = cardData.imageUrl
         card.points = cardData.points
     }
 }

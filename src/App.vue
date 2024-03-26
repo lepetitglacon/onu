@@ -10,7 +10,8 @@ const state = reactive({
   connected: false,
   players: [],
   cards: [],
-  pile: [],
+  pile: {},
+  draw: {},
 	currentPLayer: ''
 });
 
@@ -61,7 +62,8 @@ socket.on("player-remove", (socket) => {
 });
 socket.on("game-info", (infos) => {
   console.log(infos)
-  state.pile = infos.lastPileCard
+  state.pile = infos.pile
+  state.draw = infos.draw
   state.currentPLayer = infos.currentPlayer
 });
 
@@ -77,12 +79,14 @@ socket.on("game-info", (infos) => {
       </div>
       <div>
         <p>Pile</p>
-        <Card v-if="state.pile"
-              :card="state.pile"
+        <p>({{state.pile.length}})</p>
+        <Card v-if="state.pile.lastCard"
+              :card="state.pile.lastCard"
         />
       </div>
       <div>
         <p>Pioche</p>
+        <p>{{ state.draw.length }}/{{ state.draw.max }}</p>
         <Card
 	        @click="handlePiocheClick"
 	        :card="{imageUrl: 'back.png'}"

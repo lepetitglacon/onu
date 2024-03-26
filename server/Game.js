@@ -11,6 +11,7 @@ import {Player} from "./Player.js";
 import {CardFactory} from "./CardFactory.js";
 import {Utils} from "./Utils.js";
 import {ACTIONS} from "./Actions.js";
+import {Card} from "./Card.js";
 
 export class Game extends EventEmitter {
 
@@ -29,7 +30,7 @@ export class Game extends EventEmitter {
         this.currentPlayerIndex = 0
         this.turns = 0
 
-        this.initialDeck = new Map()
+        this.initialDeck = []
         this.cards = []
         this.pile = []
 
@@ -40,9 +41,14 @@ export class Game extends EventEmitter {
     async playTurn(e) {
         console.log('tour : ' + this.turns)
 
+        // Controles du jeu (replissage de deck...)
+        if (this.cards.length <= 1) {
+            // TODO remplir les cartes + shuffle
+        }
+
         // premier tour on tire les cartes au hasard
         if (this.turns === 0) {
-            this.shuffle(this.initialDeck) // Shuffle le deck
+            this.shuffle(this.cards) // Shuffle le deck
             this.distributeCards() // Donner 7 cartes à chaques joueurs
 
             this.pile.push(this.draw()) // met la première carte en jeu
@@ -75,7 +81,11 @@ export class Game extends EventEmitter {
 
                 if (card) {
                     console.log(player.id, 'playing card', card)
-                    const originalCard = this.initialDeck.get(card.id)
+                    const originalCard = this.initialDeck.find(cardToFind => {
+                        console.log(card.id === cardToFind.id, card.id, cardToFind.id);
+                        card.id === cardToFind.id;
+                    })
+                    console.log(originalCard)
                     if (this.canPlayCardOnCurrentCard(originalCard)) {
                         console.log('la carte peut etre jouée')
 
@@ -90,7 +100,18 @@ export class Game extends EventEmitter {
                             this.clockwise = false
                         }
 
+                        if (card.title === '+2' || card.title === '+4') {
+                            const nextPlayerId = this.getNextPlayerFollowingOrder(false)
+                            const nextPlayer = this.players.get(nextPlayerId)
+                            const numberToDraw = card.title === '+2' ? 2 : 4
+                            nextPlayer.cards.push(this.draw(numberToDraw))
 
+                            console.log(`Ouch ${card.title} pour le joueur ${nextPlayerId}`)
+                        }
+
+                        if (card.title === 'color') {
+                            console.log("Changement de couleur")
+                        }
 
                         player.removeCard(card.id)
                         this.pile.push(card)
@@ -144,7 +165,8 @@ export class Game extends EventEmitter {
         const currentCard = this.getCurrentPileCard()
 
         return card.title === currentCard.title ||
-            card.color === currentCard.color;
+            card.color === currentCard.color ||
+            card.color === Card.COLORS.BLACK;
 
     }
 
@@ -193,8 +215,15 @@ export class Game extends EventEmitter {
 
     sendGameInfo() {
         const infos = {}
-        infos.pile = this.pile
-        infos.lastPileCard = this.getCurrentPileCard()
+        infos.pile = {
+            length: this.pile.length,
+            lastCard: this.getCurrentPileCard()
+        }
+        infos.draw = {
+            length: this.cards.length,
+            max: this.initialDeck.length
+        }
+        infos.currentPlayer = this.currentPlayerId
         infos.currentPlayer = this.currentPlayerId
         this.server.to("room1").emit('game-info', infos)
     }
@@ -219,7 +248,7 @@ export class Game extends EventEmitter {
         this.sendPlayerInfo()
     }
 
-    getNextPlayerFollowingOrder() {
+    getNextPlayerFollowingOrder(change = true) {
         const playerIds = Array.from(this.players.keys())
         let nextPlayer = null
         let nextIndex = null
@@ -240,8 +269,10 @@ export class Game extends EventEmitter {
                 nextIndex = this.currentPlayerIndex - 1
             }
         }
-        this.currentPlayerIndex = nextIndex
-        this.currentPlayerId = nextPlayer
+        if (change) {
+            this.currentPlayerIndex = nextIndex
+            this.currentPlayerId = nextPlayer
+        }
         return nextPlayer
     }
 
@@ -252,14 +283,14 @@ export class Game extends EventEmitter {
 
     init() {
         this.fillInitialCards()
-        this.cards = this.shuffle(Array.from(this.initialDeck.values()))
+        this.cards = this.shuffle(this.initialDeck)
     }
 
     fillInitialCards() {
-        const cards = this.cardFactory.createCardsFromData()
-        for (const card of cards) {
-            this.initialDeck.set(card.id, card)
+        for (const card of this.cardFactory.createCardsFromData()) {
+            this.initialDeck.push(card)
         }
+        console.log(this.initialDeck.length)
     }
 
     bind() {
