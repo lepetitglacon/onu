@@ -30,6 +30,8 @@ export class Game extends EventEmitter {
         this.currentPlayerIndex = 0
         this.turns = 0
 
+        this.toDraw = 0
+
         this.initialDeck = []
         this.cards = []
         this.pile = []
@@ -81,10 +83,17 @@ export class Game extends EventEmitter {
 
                 if (card) {
                     console.log(player.id, 'playing card', card)
-                    const originalCard = this.initialDeck.find(cardToFind => {
-                        console.log(card.id === cardToFind.id, card.id, cardToFind.id);
-                        card.id === cardToFind.id;
-                    })
+                    let originalCard = undefined
+                    try {
+                        console.log(this.initialDeck)
+                        originalCard = this.initialDeck.find(cardToFind => {
+                            console.log(card.id === cardToFind.id, card.id, cardToFind.id);
+                            return card.id === cardToFind.id;
+                        })
+                    } catch (e) {
+                        console.error("Can't find card in initial deck", card.id)
+                        return;
+                    }
                     console.log(originalCard)
                     if (this.canPlayCardOnCurrentCard(originalCard)) {
                         console.log('la carte peut etre jouée')
@@ -104,9 +113,15 @@ export class Game extends EventEmitter {
                             const nextPlayerId = this.getNextPlayerFollowingOrder(false)
                             const nextPlayer = this.players.get(nextPlayerId)
                             const numberToDraw = card.title === '+2' ? 2 : 4
-                            nextPlayer.cards.push(this.draw(numberToDraw))
-
+                            this.toDraw += numberToDraw
                             console.log(`Ouch ${card.title} pour le joueur ${nextPlayerId}`)
+                        } else {
+                            if (this.toDraw > 0) {
+                                for (let i = 0; i < this.toDraw; i++) {
+                                    player.cards.push(this.draw())
+                                }
+                                this.toDraw = 0
+                            }
                         }
 
                         if (card.title === 'color') {
@@ -146,7 +161,7 @@ export class Game extends EventEmitter {
 
         // win condition
         if (player.cards.length === 0) {
-            return player
+            this.emit('game.win', {player: player})
         }
 
         player.socket.emit('starting-cards', player.cards)
@@ -166,7 +181,8 @@ export class Game extends EventEmitter {
 
         return card.title === currentCard.title ||
             card.color === currentCard.color ||
-            card.color === Card.COLORS.BLACK;
+            card.color === Card.COLORS.BLACK ||
+            currentCard.color === Card.COLORS.BLACK;
 
     }
 
@@ -190,6 +206,7 @@ export class Game extends EventEmitter {
 
     // declare the function
     shuffle = (array) => {
+        const newArray = [...array]
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
@@ -283,20 +300,23 @@ export class Game extends EventEmitter {
 
     init() {
         this.fillInitialCards()
-        this.cards = this.shuffle(this.initialDeck)
+        this.cards = [...this.initialDeck]
+        this.cards = this.shuffle(this.cards)
     }
 
     fillInitialCards() {
         for (const card of this.cardFactory.createCardsFromData()) {
             this.initialDeck.push(card)
         }
-        console.log(this.initialDeck.length)
     }
 
     bind() {
         // own events
         this.on('player-add', (e) => {
             this.sendPlayerInfo()
+        })
+        this.on('game.win', (e) => {
+            this.server.to("room1").emit('game-end', e)
         })
 
         // socket events

@@ -12,7 +12,8 @@ const state = reactive({
   cards: [],
   pile: {},
   draw: {},
-	currentPLayer: ''
+	currentPLayer: '',
+	winner: ''
 });
 
 // "undefined" means the URL will be computed from the `window.location` object
@@ -66,6 +67,9 @@ socket.on("game-info", (infos) => {
   state.draw = infos.draw
   state.currentPLayer = infos.currentPlayer
 });
+socket.on("game.win", (infos) => {
+  state.winner = infos.player
+});
 
 </script>
 
@@ -74,6 +78,9 @@ socket.on("game-info", (infos) => {
 
     <div id="center">
 	    <div><p>{{socket.id}}</p></div>
+	    <template v-if="state.winner">
+			{{ state.winner.title }}
+	    </template>
       <div>
         <p>ONU</p>
       </div>
