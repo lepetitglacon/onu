@@ -13,6 +13,7 @@ import {Utils} from "./Utils.js";
 import {ACTIONS} from "./Actions.js";
 import {Card} from "./Card.js";
 
+// https://fr.wikipedia.org/wiki/Uno
 export class Game extends EventEmitter {
 
     constructor({io}) {
@@ -23,30 +24,33 @@ export class Game extends EventEmitter {
         this.players = new Map()
 
         this.cardFactory = new CardFactory()
+        this.initialDeck = []
+        this.fillInitialCards()
 
+        this.bind()
+        this.init()
+    }
+
+    init() {
         this.started = false
         this.clockwise = true
         this.currentPlayerId = null
         this.currentPlayerIndex = 0
         this.turns = 0
-
         this.toDraw = 0
-
-        this.initialDeck = []
         this.cards = []
         this.pile = []
 
-        this.init()
-        this.bind()
+        for (const [id, player] of this.players) {
+            player.cards = []
+        }
+
+        this.cards = [...this.initialDeck]
+        this.cards = this.shuffle(this.cards)
     }
 
     async playTurn(e) {
         console.log('tour : ' + this.turns)
-
-        // Controles du jeu (replissage de deck...)
-        if (this.cards.length <= 1) {
-            // TODO remplir les cartes + shuffle
-        }
 
         // premier tour on tire les cartes au hasard
         if (this.turns === 0) {
@@ -68,13 +72,18 @@ export class Game extends EventEmitter {
             return
         }
 
+
         if (e.player.id !== this.currentPlayerId) {
             console.log("Ce n'est pas à ce joueur de jouer")
             return
         }
-
         const player = this.players.get(this.currentPlayerId)
         console.log('---- ', player.id, ' played')
+
+        // Controles du jeu (replissage de deck...)
+        if (this.cards.length <= 1) {
+            // TODO remplir les cartes + shuffle
+        }
 
         switch (e.action) {
             case ACTIONS.PLAY: {
@@ -82,19 +91,7 @@ export class Game extends EventEmitter {
                 let card = player.getCard(e.card.id)
 
                 if (card) {
-                    console.log(player.id, 'playing card', card)
-                    let originalCard = undefined
-                    try {
-                        console.log(this.initialDeck)
-                        originalCard = this.initialDeck.find(cardToFind => {
-                            console.log(card.id === cardToFind.id, card.id, cardToFind.id);
-                            return card.id === cardToFind.id;
-                        })
-                    } catch (e) {
-                        console.error("Can't find card in initial deck", card.id)
-                        return;
-                    }
-                    console.log(originalCard)
+                    let originalCard = this.initialDeck.find(cardToFind => {return card.id === cardToFind.id})
                     if (this.canPlayCardOnCurrentCard(originalCard)) {
                         console.log('la carte peut etre jouée')
 
@@ -145,6 +142,13 @@ export class Game extends EventEmitter {
                 console.log('joueur', player.id, 'pioche')
                 player.cards.push(this.draw())
 
+                if (this.toDraw > 0) {
+                    for (let i = 0; i < this.toDraw; i++) {
+                        player.cards.push(this.draw())
+                    }
+                    this.toDraw = 0
+                }
+
                 break;
             }
             case ACTIONS.ONU: {
@@ -171,9 +175,7 @@ export class Game extends EventEmitter {
         this.sendPlayerInfo()
         this.sendGameInfo()
 
-        // await Utils.sleep(1000)
         this.turns++
-        // this.playTurn()
     }
 
     canPlayCardOnCurrentCard(card) {
@@ -295,13 +297,9 @@ export class Game extends EventEmitter {
 
     start() {
         this.started = true
+        this.init()
         this.playTurn()
-    }
 
-    init() {
-        this.fillInitialCards()
-        this.cards = [...this.initialDeck]
-        this.cards = this.shuffle(this.cards)
     }
 
     fillInitialCards() {
@@ -313,7 +311,11 @@ export class Game extends EventEmitter {
     bind() {
         // own events
         this.on('player-add', (e) => {
+            for (const [id, player] of this.players) {
+                player.socket.emit('starting-cards', player.cards)
+            }
             this.sendPlayerInfo()
+            this.sendGameInfo()
         })
         this.on('game.win', (e) => {
             this.server.to("room1").emit('game-end', e)
