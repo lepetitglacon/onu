@@ -16,8 +16,5 @@ const clicked = ref(false)
 </template>
 
 <style scoped>
-img {
-	position: relative;
-    max-width: 150px;
-}
+
 </style>

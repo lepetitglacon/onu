@@ -17,12 +17,27 @@ const getStyle = (i) => {
 		transform: `rotate(${i * Math.PI - rotationOffset}deg)`
 	}
 }
+const getContainerStyle = () => {
+
+	if (Number.isInteger(props.cards)) {
+		return {
+			"padding-left": `${props.cards * 50}px`
+		}
+	} else {
+		return {
+			"padding-left": `${props.cards.length * 50}px`
+		}
+	}
+
+
+
+}
 
 const clicked = ref(false)
 </script>
 
 <template>
-	<div class="card-container">
+	<div class="card-container" :style="getContainerStyle()">
 
 		<template v-if="fill">
 
